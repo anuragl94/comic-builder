@@ -1,0 +1,557 @@
+<!--Super lightweight editor after 4 iterations :)-->
+<!--Source code written by Anurag and Anjana for 2 credit mini project-->
+
+<html>
+<head>
+
+<link rel="stylesheet" type="text/css" href="css/skin1.css">
+<link rel="shortcut icon" href="images/logo.png">
+<link rel="script" href="contextmenu_o.js">
+<title>Comickaze | Editor</title>
+<!--Essential CSS elements to reposition everything on the page. Somehow linking a stylesheet messes up everything-->
+<style>
+body {
+	background-color: #dddddd;
+	-moz-user-select: none;
+	-khtml-user-select: none;
+	-webkit-user-select: none;
+	-o-user-select: none;
+}
+
+@font-face {
+    font-family: digistrip;
+    src: url(digistrip.ttf);
+}
+
+a:link {color: #000000 ; text-decoration: none; font-family: Verdana;font-size:8pt;}
+	a:visited {color: #0c2b86 ; text-decoration: none; font-family: Verdana;font-size:8pt;}
+	a:hover {color: #555555 ; text-decoration: underline; }
+	a:active {color: #333333 ;text-decoration: underline;font-size:8pt; }
+	img  { border : 0 }
+	
+.movable {
+	cursor: default;
+	position: absolute;
+	top: 60px;
+	left: 60px;
+	user-drag: none; 
+	-moz-user-select: none;
+	-webkit-user-drag: none;
+}
+
+.character {
+	font-size: 20;
+	top: 340px;
+	left: 1135px;
+}
+
+#debug, #debug_toggle {
+	position: absolute;
+	top: 0;
+	left: 1080;
+	margin: 10px;
+	background-color: rgba(100,100,100,0.3);
+	width: 220px;
+	padding: 10px;
+}
+
+.speech {
+	font-family: digistrip;
+	text-align: center;
+	width: 250px;
+	left: 1090px;
+	top: 280px;
+}
+
+#debug {
+	top: 42;
+}
+
+canvas {
+	background-color: white;
+	border:5px solid #d3d3d3;
+	padding: 10px;
+}
+
+.carea {
+	position: relative;
+	top: 0;
+	left: 0;
+	margin: 10px;
+}
+
+#canvas_interface {
+	margin: 10px;
+}
+
+table {
+	margin-bottom: 10px;
+}
+
+table td {
+	padding-left: 50px;
+}
+
+table td input[type=number] {
+	width: 100px;
+	padding: 4px;
+}
+
+button, input[type=submit], input[type=number] {
+	padding: 6px;
+	border-radius: 0px;
+}
+
+#contextMenu {
+	position: absolute;
+	height: 80px;
+	width: 80px;
+	background-color: black;
+	z-index: 1;
+}
+
+#darken {
+	top: 0;
+	left: 0;
+	position: fixed;
+	height: 100vh;
+	width: 100vw;
+	background-color: rgba(0,0,0,0.8);
+	z-index: 2;
+}
+
+#promptbox {
+	position: fixed;
+	top: 20vh;
+	left: 20vw;
+	background-color: white;
+	height: 60vh;
+	width: 60vw;
+	text-align: center;
+	z-index: 2;
+	padding: 30px;
+}
+
+#promptbox p {
+	font-family: "Calibri";
+	font-size: 24;
+	margin-top: 0px;
+	margin-bottom: 10px;
+}
+
+#promptbox input[type=color] {
+	height: 32px;
+	width: 134px;
+	margin-top: 0px;
+	margin-bottom: 10px;
+}
+
+#promptbox button {
+	padding: 6px;
+	border-radius: 0px;
+	margin: 5px;
+	width: 62px;
+}
+
+#promptbox input[type=number] {
+	padding: 6px;
+	border-radius: 0px;
+	width: 60px;
+	margin: 5px;
+}
+</style>
+</head>
+
+<script>
+//// Some neat little lines of code to track mouse movements :)
+var focus = null;	// What element is currently in focus
+var offset_x=0, offset_y=0;
+
+var mouse_x = null;
+var mouse_y = null;
+var mouseDown = false;
+
+var context_menu=null;
+var on_context_menu=false;
+
+// Detect if mouse is clicked currently or not. I know, I know. JavaScript is useless.
+document.addEventListener('mousemove', onMouseUpdate, false);
+document.addEventListener('mouseenter', onMouseUpdate, false);
+
+function debug(){
+	document.getElementById("cuurds").innerHTML = mouse_x+","+mouse_y;
+	document.getElementById("offs").innerHTML = offset_x+","+offset_y;
+}
+
+function onMouseUpdate(e) {
+    mouse_x = parseInt(e.pageX);
+    mouse_y = parseInt(e.pageY);
+	debug();
+	if (focus!==null)
+	{
+		focus.style.left = (mouse_x-offset_x)+"px";
+		focus.style.top = (mouse_y-offset_y)+"px";
+	}
+}
+
+function focus_on(item) {
+	if(focus==null){
+		focus = item;
+		var style = window.getComputedStyle(item);
+		offset_x = mouse_x-parseInt(style.left);
+		offset_y = mouse_y-parseInt(style.top);
+	}
+	else {
+	focus = null;
+	}
+}
+
+function reposition(item,off_x,off_y,angle,direction){
+	var x, y;
+	x = (off_x+parseInt(item.style.left))+"px";
+	y = (off_y+parseInt(item.style.top))+"px";
+	item.setAttribute("style","top: "+y+"; left: "+x+"; transform: rotate("+angle+"deg); transform: scaleX("+direction+");"); 
+}
+
+function create_character(){
+	//alert("Creating new character");
+	var item = document.createElement("div");
+	item.className = "character movable";
+	item.oncontextmenu = function(e) {
+		e.preventDefault();
+		character_contextmenu(e, item);
+	}
+	var bodypart, facepart;
+	
+	// Torso
+	bodypart = document.createElement("div");
+	bodypart.className = "torso movable";
+	bodypart.setAttribute("onclick","focus_on(this.parentNode)");
+	item.appendChild(bodypart);
+	
+	// Left arm
+	bodypart = document.createElement("div");
+	bodypart.className = "arm movable";
+	bodypart.setAttribute("onclick","focus_on(this)");
+	bodypart.setAttribute("style","margin-left:-10;transform:rotate(30deg);");
+	item.appendChild(bodypart);
+	
+	// Right arm
+	bodypart = document.createElement("div");
+	bodypart.className = "arm movable";
+	bodypart.setAttribute("onclick","focus_on(this)");
+	bodypart.setAttribute("style","margin-left:55;transform:rotate(-30deg);");
+	item.appendChild(bodypart);
+	
+	// Left leg
+	bodypart = document.createElement("div");
+	bodypart.className = "leg movable";
+	bodypart.setAttribute("onclick","focus_on(this)");
+	bodypart.setAttribute("style","margin-left:0;margin-top:50px;");
+	item.appendChild(bodypart);
+	
+	// Right leg
+	bodypart = document.createElement("div");
+	bodypart.className = "leg movable";
+	bodypart.setAttribute("onclick","focus_on(this)");
+	bodypart.setAttribute("style","margin-left:43;margin-top:50px;");
+	item.appendChild(bodypart);
+	
+	// Face
+	bodypart = document.createElement("div");
+	bodypart.className = "face movable";
+	bodypart.setAttribute("onclick","focus_on(this)");
+		
+		// Left eye
+		facepart = document.createElement("div");
+		facepart.className = "eye movable";
+		facepart.setAttribute("style","margin-left:-40;margin-top:-30;");
+		bodypart.appendChild(facepart);
+		// Right eye
+		facepart = document.createElement("div");
+		facepart.className = "eye movable";
+		facepart.setAttribute("style","margin-left:-15;margin-top:-30;");
+		bodypart.appendChild(facepart);
+		// Mouth
+		facepart = document.createElement("div");
+		facepart.className = "mouth movable";
+		facepart.setAttribute("style","margin-left:-30;margin-top:-30;");
+		bodypart.appendChild(facepart);
+	
+	item.appendChild(bodypart);
+	
+	document.getElementById("canvasArea").appendChild(item);
+	//focus_on(item);
+}
+
+function create_speech() {
+	var item = document.createElement("div");
+	item.oncontextmenu = function(e) {
+		e.preventDefault();
+		character_contextmenu(e, item);
+	}
+	item.className = "speech movable";
+	item.setAttribute("onclick","focus_on(this)");
+	item.innerHTML = prompt("What to say?", "Let this be an awkward conversation between me and myself.");
+	if (item.innerHTML!="")
+		document.getElementById("canvasArea").appendChild(item);
+}
+
+function drawGrid() {
+	var c = document.getElementById("myCanvas");
+	var ctx = c.getContext("2d");
+	var i;
+	//ctx.lineWidth = 1;
+	var row = document.getElementById("rows").value;
+	var rowheight = document.getElementById("rowheight").value;
+	var col = document.getElementById("columns").value;
+	var colwidth = document.getElementById("colwidth").value;
+		
+	ctx.clearRect(0,0,1024,500);
+	ctx.beginPath();
+	for(i=0;i<=col;i=i+1)
+		{
+		ctx.moveTo(i*colwidth,0);
+		ctx.lineTo(i*colwidth,row*rowheight);
+		}
+	for(i=0;i<=row;i=i+1)
+		{
+		ctx.moveTo(0,i*rowheight);
+		ctx.lineTo(col*colwidth,i*rowheight);
+		}
+	ctx.closePath();
+	ctx.stroke();
+	}	
+	
+function debug_toggle() {
+	var item = document.getElementById("debug");
+	if (item.style.visibility=="hidden")
+		item.style.visibility="visible";
+	else
+		item.style.visibility="hidden";
+}
+
+function character_contextmenu(evt, item) {
+	//alert(evt);
+	//var	content = '<a href="#" title="Reload Page" alt="Reload" onclick="window.location.reload();">Refresh</a><br>';
+	//content+= '<a href="#" title="Go Back" alt="back" onclick="history.go(-1);"> Back</a><br>';
+	//content+= '<a href="#" title="Go Forward" alt="Forward" onclick="history.go(1);">Forward</a><br>';
+	//init(content,120);	//What was this anyway?
+	
+	/*
+	context_menu = document.createElement("div");
+	context_menu.setAttribute("id","contextMenu");
+	context_menu.setAttribute("onmouseover","on_context_menu=true;");
+	context_menu.setAttribute("onmouseout","on_context_menu=false;clear_contextmenu();");
+	document.getElementById("contextArea").appendChild(context_menu);
+		
+	context_menu.setAttribute("style","top:"+mouse_y+"px;left:"+mouse_x+"px;");
+	*/
+	revamp(item);
+}
+
+function clear_contextmenu(){
+	//var element = document.getElementById("element-id");
+	//element.parentNode.removeChild(element);
+	document.getElementById("contextArea").innerHTML="";
+}
+
+//Here are some editing options for the characters, in the form of functions
+function revamp(character){
+	if (character.className=="character movable")
+	{
+		var bodyparts = character.childNodes;
+		// Torso, Left arm, Right arm, Left leg, Right leg, Face
+		
+		var body = document.body;
+		
+		var darkarea = document.createElement("div");
+		darkarea.setAttribute("id","darken");
+		body.appendChild(darkarea);
+		
+		var promptbox = document.createElement("div");
+		promptbox.setAttribute("id","promptbox");
+		darkarea.appendChild(promptbox);
+		
+		// Torso colour
+		var description = document.createElement("p");
+		description.innerHTML = "Shirt colour";
+		promptbox.appendChild(description);
+		
+		var input_torso = document.createElement("input");
+		input_torso.setAttribute("type","color");
+		var style = window.getComputedStyle(bodyparts[0]);
+		var rgb = style.backgroundColor.replace(/[^0-9,]/g, '').split(",");
+		input_torso.value = rgbToHex(rgb[0],rgb[1],rgb[2]);
+		promptbox.appendChild(input_torso);
+		
+		// Arms
+		var description = document.createElement("p");
+		description.innerHTML = "Arm rotation";
+		promptbox.appendChild(description);
+		
+		var input_arm1 = document.createElement("input");
+		input_arm1.setAttribute("type","range");
+		input_arm1.setAttribute("min","-180");
+		input_arm1.setAttribute("max","180");
+		input_arm1.setAttribute("value","-30");
+		input_arm1.setAttribute("list","my-detents");
+		
+		var input_arm2 = document.createElement("input");
+		input_arm2.setAttribute("type","range");
+		input_arm2.setAttribute("min","-180");
+		input_arm2.setAttribute("max","180");
+		input_arm2.setAttribute("value","30");
+		input_arm2.setAttribute("list","my-detents");
+		
+		promptbox.appendChild(input_arm1);
+		promptbox.appendChild(input_arm2);
+		
+		// Legs
+		var description = document.createElement("p");
+		description.innerHTML = "Leg rotation";
+		promptbox.appendChild(description);
+		
+		var input_leg1 = document.createElement("input");
+		input_leg1.setAttribute("type","range");
+		input_leg1.setAttribute("min","-180");
+		input_leg1.setAttribute("max","180");
+		input_leg1.setAttribute("list","my-detents");
+		
+		var input_leg2 = document.createElement("input");
+		input_leg2.setAttribute("type","range");
+		input_leg2.setAttribute("min","-180");
+		input_leg2.setAttribute("max","180");
+		input_leg2.setAttribute("list","my-detents");
+		
+		var style = window.getComputedStyle(bodyparts[0]);
+		promptbox.appendChild(input_leg1);
+		promptbox.appendChild(input_leg2);
+		
+		// Face
+		var description = document.createElement("p");
+		description.innerHTML = "Face colour";
+		promptbox.appendChild(description);
+		var input_face = document.createElement("input");
+		input_face.setAttribute("type","color");
+		var style = window.getComputedStyle(bodyparts[5]);
+		var rgb = style.backgroundColor.replace(/[^0-9,]/g, '').split(",");
+		input_face.value = rgbToHex(rgb[0],rgb[1],rgb[2]);
+		promptbox.appendChild(input_face);
+		
+		var newline = document.createElement("br");
+		promptbox.appendChild(newline);
+		var newline = document.createElement("br");
+		promptbox.appendChild(newline);
+		
+		var submit = document.createElement("button");
+		submit.innerHTML = "Accept";
+		submit.onclick = function()
+			{
+			bodyparts[0].style.backgroundColor=input_torso.value;
+			bodyparts[1].style.transform = "rotate("+input_arm1.value.toString()+"deg)";
+			bodyparts[2].style.transform = "rotate("+input_arm2.value.toString()+"deg)";
+			bodyparts[3].style.transform = "rotate("+input_leg1.value.toString()+"deg)";
+			bodyparts[4].style.transform = "rotate("+input_leg2.value.toString()+"deg)";
+			bodyparts[5].style.backgroundColor=input_face.value;
+			body.removeChild(darkarea);
+			};
+		promptbox.appendChild(submit);
+		
+		var cancel = document.createElement("button");
+		cancel.innerHTML = "Cancel";
+		cancel.onclick = function(){body.removeChild(darkarea);};
+		promptbox.appendChild(cancel);
+	}
+	else if(character.className=="speech movable")
+	{
+		var temptext = prompt("What should the text say now?", character.innerHTML);
+		if (temptext!="")
+			character.innerHTML = temptext;
+	}
+}
+
+// Misc helper functions
+function componentToHex(c) {
+	c = parseInt(c);
+    var hex = c.toString(16);
+    return hex.length == 1 ? "0" + hex : hex;
+}
+
+function rgbToHex(r, g, b) {
+    return "#" + componentToHex(r) + componentToHex(g) + componentToHex(b);
+}
+</script>
+
+<body>
+
+<datalist id="my-detents">
+  <option value="-180"></option>
+  <option value="-150"></option>
+  <option value="-120"></option>
+  <option value="-90"></option>
+  <option value="-60"></option>
+  <option value="-30"></option>
+  <option value="0"></option>
+  <option value="30"></option>
+  <option value="60"></option>
+  <option value="90"></option>
+  <option value="120"></option>
+  <option value="150"></option>
+  <option value="180"></option>
+</datalist>
+
+<div id="canvas_and_debug">
+	<div class="carea">
+		<canvas id="myCanvas" height="500px" width="1024px">
+		Your browser does not support the HTML5 canvas tag.</canvas><br>
+	</div>
+	<p id="debug_toggle" onclick="debug_toggle()">Show/Hide debug</p>
+	<div id="debug" style="visibility: hidden;">
+		Coords:<p id="cuurds">
+		0,0
+		</p>
+		<br>
+		Offset:<p id="offs">
+		0,0
+		</p>
+	</div>
+</div>
+
+<div id="canvas_interface">
+	<table><tr>
+		<td>Rows <input type = "number" id="rows" value="2"/></td>
+		<td>Row width <input type = "number" id="rowheight" value="250"/></td>
+		<td>Columns <input type="number" id ="columns" value="3"/></td>
+		<td>Column width <input type = "number" id="colwidth" value="341"/></td>
+		<td><input type="submit" onclick="drawGrid()" value="Draw grid" /></td>
+	</tr></table>
+	
+	<button onclick="create_character()">Create new character</button>
+	<button onclick="create_speech()">Create speech bubble</button>
+</div>
+
+<div id="canvasArea">
+	<!--div class="character movable" style="display:none;">
+		<div class="torso movable" onclick="focus_on(this.parentNode)"></div>
+		<div class="arm movable" onclick="focus_on(this)" style="margin-left:-10;transform:rotate(30deg);"></div>
+		<div class="arm movable" onclick="focus_on(this)" style="margin-left:55;transform:rotate(-30deg);"></div>
+		<div class="leg movable" onclick="focus_on(this)" style="margin-left:0;margin-top:50px;"></div>
+		<div class="leg movable" onclick="focus_on(this)" style="margin-left:43;margin-top:50px;"></div>
+		<div class="face movable" onclick="focus_on(this)">
+			<div class="eye movable" style="margin-left:-40;margin-top:-30;"></div>
+			<div class="eye movable" style="margin-left:-15;margin-top:-30;"></div>
+			<div class="mouth movable" style="margin-left:-30;margin-top:-30;"></div>
+		</div>
+	</div>
+	
+	<div class="speech movable" onclick="focus_on(this)" style="display:none;">
+		Let this be an awkward conversation between me and myself.
+	</div-->
+</div>
+
+<div id="contextArea">
+</div>
+
+</body>
+</html>

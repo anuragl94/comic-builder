@@ -1,0 +1,65 @@
+.torso {
+	height: 45px;
+	width: 40px;
+	background-color: #679801;
+	border: 3px solid black;
+	z-index: 1;
+}
+
+.face {
+	margin-top: -50px;	/* Some silly adjustments */
+	margin-left: -10px;	/* Some silly adjustments */
+	height: 60px;
+	width: 60px;
+	background-color: #FFBCA6;
+	border: 3px solid black;
+	border-radius: 36px;
+	z-index: 1;
+}
+
+.arm {
+	margin-top: 5px;
+	height: 45px;
+	width: 3px;
+	background-color: black;
+	z-index: 1;
+}
+
+.leg {
+	height: 45px;
+	width: 3px;
+	background-color: black;
+	angle: 10;
+	z-index: 1;
+}
+
+.eye {
+	height: 10px;
+	width: 10px;
+	border-radius: 8px;
+	background-color: black;
+	angle: 10;
+	z-index: 1;
+}
+
+.mouth {
+	margin-top: 50px;
+	height: 45px;
+	width: 3px;
+	background-color: black;
+	angle: 10;
+	z-index: 1;
+	-webkit-border-bottom-right-radius: 17px;
+	-webkit-border-bottom-left-radius: 17px;
+	-moz-border-radius-bottomright: 17px;
+	-moz-border-radius-bottomleft: 17px;
+	border-bottom-right-radius: 17px;
+	border-bottom-left-radius: 17px;
+	height: 13px;
+	background-color: #000;
+	position: absolute;
+	width: 35px;
+	left: 45px;
+	top: 74px;
+	display:none;
+}
